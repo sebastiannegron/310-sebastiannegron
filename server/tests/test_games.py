@@ -98,6 +98,10 @@ class TestGamesRoutes(unittest.TestCase):
             
         db.session.add_all(games)
         db.session.commit()
+        
+        # Store IDs for filtering tests
+        self.publisher_ids = [p.id for p in publishers]
+        self.category_ids = [c.id for c in categories]
 
     def _get_response_data(self, response: Response) -> Any:
         """Helper method to parse response data"""
@@ -167,6 +171,51 @@ class TestGamesRoutes(unittest.TestCase):
         # Assert
         self.assertEqual(response.status_code, 404)
         self.assertEqual(data['error'], "Game not found")
+
+    def test_filter_games_by_publisher(self) -> None:
+        """Test filtering games by publisher"""
+        # Act
+        response = self.client.get(f'{self.GAMES_API_PATH}?publisher={self.publisher_ids[0]}')
+        data = self._get_response_data(response)
+        
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['title'], self.TEST_DATA['games'][0]['title'])
+
+    def test_filter_games_by_category(self) -> None:
+        """Test filtering games by category"""
+        # Act
+        response = self.client.get(f'{self.GAMES_API_PATH}?category={self.category_ids[1]}')
+        data = self._get_response_data(response)
+        
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['title'], self.TEST_DATA['games'][1]['title'])
+
+    def test_filter_games_by_category_and_publisher(self) -> None:
+        """Test filtering games by both category and publisher"""
+        # Act
+        response = self.client.get(
+            f'{self.GAMES_API_PATH}?category={self.category_ids[0]}&publisher={self.publisher_ids[0]}'
+        )
+        data = self._get_response_data(response)
+        
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['title'], self.TEST_DATA['games'][0]['title'])
+
+    def test_filter_games_no_results(self) -> None:
+        """Test filtering games with criteria that returns no results"""
+        # Act - Use non-existent publisher ID
+        response = self.client.get(f'{self.GAMES_API_PATH}?publisher=999')
+        data = self._get_response_data(response)
+        
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(data), 0)
 
 if __name__ == '__main__':
     unittest.main()
